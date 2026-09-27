@@ -130,13 +130,13 @@ class MainActivity : AppCompatActivity() {
         val enabled = master && usingRemotePrefs
 
         ui.content.addView(ui.sectionLabel("Device-wide", allNoneActions(enabled)))
-        addCategoryCard(Restrictions.CATEGORIES.filter { it.key in DEVICE_WIDE }, enabled)
+        addCategoryCard(Restrictions.CATEGORIES.filter { it.deviceWide }, enabled)
         ui.content.addView(
-            ui.noteRow("These rewrite the answer system_server gives every process, so they work without scoping each app — but they need System Framework (android) in the module scope.")
+            ui.noteRow("These rewrite the answer system_server gives every process, so they work without scoping each app — but they need System Framework (android) in the module scope. The device-owner spoof is off by default: it reaches apps you never scoped and can confuse Settings on a device that really is managed.")
         )
 
         ui.content.addView(ui.sectionLabel("App-facing"))
-        addCategoryCard(Restrictions.CATEGORIES.filter { it.key !in DEVICE_WIDE }, enabled)
+        addCategoryCard(Restrictions.CATEGORIES.filter { !it.deviceWide }, enabled)
         ui.content.addView(
             ui.noteRow("These change what a scoped app sees when it asks. An app that is not in the module scope is unaffected.")
         )
@@ -160,7 +160,7 @@ class MainActivity : AppCompatActivity() {
                     iconFor(cat.key),
                     cat.title,
                     cat.subtitle,
-                    prefs.getBoolean(Prefs.key(cat.key), Prefs.CATEGORY_DEFAULT),
+                    prefs.getBoolean(Prefs.key(cat.key), cat.defaultOn),
                     enabled,
                 ) { value ->
                     prefs.edit()?.putBoolean(Prefs.key(cat.key), value)?.apply()
@@ -180,7 +180,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun enabledCount(): Int =
-        Restrictions.CATEGORIES.count { prefs.getBoolean(Prefs.key(it.key), Prefs.CATEGORY_DEFAULT) }
+        Restrictions.CATEGORIES.count { prefs.getBoolean(Prefs.key(it.key), it.defaultOn) }
 
     // ------------------------------------------------------------------ diagnostics
 
@@ -192,7 +192,7 @@ class MainActivity : AppCompatActivity() {
         if (reports.isEmpty()) {
             col.addView(
                 ui.bodyText(
-                    "No report yet. A report appears once a scoped process has started with this build — reboot, or force-stop a scoped app, then come back."
+                    "No report yet. A report appears once a scoped process has started with this build — reboot, or force-stop a scoped app, then come back.\n\nEvery report is also written to the LSPosed log, which is the only place it can appear when the framework refuses this module a file inside system_server. Look for \"installed N/M hooks\" and the \"unresolved:\" list next to it."
                 )
             )
         } else {
@@ -234,6 +234,7 @@ class MainActivity : AppCompatActivity() {
                     FileInputStream(pfd.fileDescriptor).use { it.readBytes().decodeToString() }
                 }
             }.getOrNull() ?: return@mapNotNull null
+            if (text.isBlank()) return@mapNotNull null
             parseReport(name, text)
         }
     }
@@ -294,7 +295,7 @@ class MainActivity : AppCompatActivity() {
     private fun iconFor(key: String): Int = when (key) {
         Restrictions.CAMERA -> R.drawable.ic_camera
         Restrictions.SCREEN_CAPTURE, Restrictions.KEYGUARD, Restrictions.MAX_LOCK -> R.drawable.ic_screen
-        Restrictions.ADMIN -> R.drawable.ic_shield
+        Restrictions.ADMIN, Restrictions.OWNER, Restrictions.OWNER_SERVER -> R.drawable.ic_shield
         Restrictions.PASSWORD, Restrictions.ENCRYPTION -> R.drawable.ic_key
         Restrictions.PACKAGE_INSTALL -> R.drawable.ic_install
         Restrictions.DEBUGGING -> R.drawable.ic_debug
@@ -303,7 +304,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
-        val DEVICE_WIDE = setOf(Restrictions.PACKAGE_INSTALL, Restrictions.DEBUGGING)
         const val DIAG_PREFIX = "diag-"
         const val ISSUES_URL = "https://github.com/Bouteillepleine/FuckDevicePolicy/issues"
     }
