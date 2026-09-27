@@ -156,7 +156,13 @@ class MainModule : XposedModule() {
 
     private fun hookerFor(spec: Restrictions.Spec) = XposedInterface.Hooker { chain ->
         if (bypass(spec.category) && appliesTo(spec, chain)) {
-            hits.getOrPut(spec.category) { AtomicLong() }.incrementAndGet()
+            val count = hits.getOrPut(spec.category) { AtomicLong() }.incrementAndGet()
+            if (count == 1L) {
+                // One line per category for the life of the process. "Did this category ever
+                // fire?" is the question a bug report cannot otherwise answer, and a silent
+                // zero looks exactly like a category that is working.
+                log(Log.INFO, TAG, "first hit: ${spec.category} via ${spec.id} in $where")
+            }
             flush(force = false)
             spec.result()
         } else {
@@ -164,10 +170,18 @@ class MainModule : XposedModule() {
         }
     }
 
+    /**
+     * Matches on any String argument rather than a fixed index. The restriction key sits at a
+     * different position depending on the overload, and a framework is free to present the
+     * argument list differently again; a key set this specific cannot collide with an unrelated
+     * argument, so scanning is both safer and more portable than trusting one index.
+     */
     private fun appliesTo(spec: Restrictions.Spec, chain: XposedInterface.Chain): Boolean {
         val keys = spec.keys ?: return true
-        val arg = runCatching { chain.getArg(spec.keyArg) }.getOrNull()
-        return arg is String && arg in keys
+        val byIndex = runCatching { chain.getArg(spec.keyArg) }.getOrNull()
+        if (byIndex is String && byIndex in keys) return true
+        val args = runCatching { chain.args }.getOrNull() ?: return false
+        return args.any { it is String && it in keys }
     }
 
     // ------------------------------------------------------------------ diagnostics
