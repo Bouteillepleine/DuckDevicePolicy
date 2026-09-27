@@ -32,13 +32,13 @@ jobs:
 
       - name: Stage APK
         run: |
-          NAME="DuckPolicy-${GITHUB_REF_NAME#v}.apk"
+          NAME="DuckDevicePolicy-${GITHUB_REF_NAME#v}.apk"
           cp app/build/outputs/apk/release/app-release.apk "$NAME"
           echo "APK_NAME=$NAME" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: DuckPolicy-release
+          name: DuckDevicePolicy-release
           path: ${{ env.APK_NAME }}
 
       - name: Publish GitHub Release
