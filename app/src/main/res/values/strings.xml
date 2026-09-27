@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">DuckPolicy</string>
+    <string name="app_name">DuckDevicePolicy</string>
     <string name="app_subtitle">Hide device-policy restrictions from apps</string>
     <string name="xposed_description">Neutralise DevicePolicyManager / UserManager restriction checks, plus Outlook\'s own MDM enrollment gate, per category, with a master toggle.</string>
 
     <string name="master_toggle">Master bypass</string>
     <string name="status_active">Active — restrictions bypassed</string>
-    <string name="status_inactive">Inactive — restrictions apply</string>
+    <string name="status_inactive">Paused — restrictions apply</string>
     <string name="section_restrictions">RESTRICTIONS TO BYPASS</string>
     <string name="select_all">All</string>
     <string name="select_none">None</string>
