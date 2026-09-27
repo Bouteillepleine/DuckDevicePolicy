@@ -305,6 +305,6 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val DIAG_PREFIX = "diag-"
-        const val ISSUES_URL = "https://github.com/Bouteillepleine/FuckDevicePolicy/issues"
+        const val ISSUES_URL = "https://github.com/Bouteillepleine/DuckDevicePolicy/issues"
     }
 }

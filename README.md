@@ -1,8 +1,8 @@
-# DuckPolicy
+# DuckDevicePolicy
 
-[![CI](https://github.com/Bouteillepleine/FuckDevicePolicy/actions/workflows/build.yml/badge.svg)](https://github.com/Bouteillepleine/FuckDevicePolicy/actions/workflows/build.yml)
-[![Release](https://img.shields.io/github/v/release/Bouteillepleine/FuckDevicePolicy)](https://github.com/Bouteillepleine/FuckDevicePolicy/releases)
-[![Downloads](https://img.shields.io/github/downloads/Bouteillepleine/FuckDevicePolicy/total)](https://github.com/Bouteillepleine/FuckDevicePolicy/releases)
+[![CI](https://github.com/Bouteillepleine/DuckDevicePolicy/actions/workflows/build.yml/badge.svg)](https://github.com/Bouteillepleine/DuckDevicePolicy/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/Bouteillepleine/DuckDevicePolicy)](https://github.com/Bouteillepleine/DuckDevicePolicy/releases)
+[![Downloads](https://img.shields.io/github/downloads/Bouteillepleine/DuckDevicePolicy/total)](https://github.com/Bouteillepleine/DuckDevicePolicy/releases)
 
 An LSPosed / Xposed module that makes apps see **no device-policy restrictions**
 on your own device. It hooks `DevicePolicyManager` and `UserManager` restriction
@@ -37,8 +37,8 @@ toggle.
    (libxposed, `minApiVersion=101` / `targetApiVersion=102`). It needs a framework
    that implements API 101+ — the LSPosed 2.x forks. Mainline LSPosed 1.9.x stopped
    at the legacy API and will not load this build; stay on 3.1 there.
-1. Install the APK from [Releases](https://github.com/Bouteillepleine/FuckDevicePolicy/releases)
-   and enable **DuckPolicy** in LSPosed.
+1. Install the APK from [Releases](https://github.com/Bouteillepleine/DuckDevicePolicy/releases)
+   and enable **DuckDevicePolicy** in LSPosed.
 2. Set the module **scope**:
    - **System Framework** (`android`) for the broadest, system-wide effect — this
      is the recommended default for work-profile / user-restriction cases.
