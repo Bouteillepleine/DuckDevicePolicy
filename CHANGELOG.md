@@ -1,5 +1,49 @@
 # Changelog
 
+## 4.3
+- **New category: Device-owner / fully-managed checks.** 4.1 and earlier hooked no
+  device-owner getter at all, so an app asking "is this a fully managed device?"
+  still got yes — which is what Google Photos reads before refusing to set up
+  Locked Folder (issue #1). Now covered client-side: `getDeviceOwner`,
+  `getDeviceOwnerComponentOnAnyUser`, `getDeviceOwnerNameOnAnyUser`,
+  `getDeviceOwnerOrganizationName`, `isDeviceOwnerAppOnAnyUser`, `getProfileOwner`,
+  `getProfileOwnerAsUser`, `getProfileOwnerNameAsUser`,
+  `isOrganizationOwnedDeviceWithManagedProfile`, `getUserProvisioningState`,
+  `getDevicePolicyManagementRoleHolderPackage`, `isDeviceFinanced`,
+  `isAffiliatedUser` — plus `getActiveAdmins` / `getActiveAdminsAsUser` and
+  `UserManager.isManagedProfile` on the existing admin category. **The app must be
+  in the module scope** for these.
+- **New category: Device-owner spoof, device-wide** (`DevicePolicyManagerService`),
+  **off by default** — answers "no device owner" for every process without scoping
+  each app. It reaches apps you never scoped and can confuse Settings on a device
+  that really is managed, which is why it ships off.
+- **The module now says what it hooked.** The install summary is no longer gated on
+  a debug build: every process logs `installed N/M hooks in <where>` and names every
+  row it could not resolve (`no-class` / `no-method` / `hook-failed`). Each category
+  also logs the first time it actually fires. A category that silently does nothing
+  used to be indistinguishable from one that works; it no longer is. This is what a
+  report for issue #2 needs.
+- Restriction keys are matched **by value across the argument list** instead of at a
+  fixed index, so an overload or a framework that presents arguments differently no
+  longer silently stops the match.
+- Class resolution falls back through the entry-point loader, the system loader and
+  the module's own, instead of giving up on the first.
+- Fixed a crash: the framework may hand the hook side **null** from
+  `openRemoteFile` inside system_server, which threw `NullPointerException` on the
+  reporting thread every few seconds. The report falls back to the log, which is
+  also the only place it can appear — the framework's remote-file store is
+  root-owned, so no hooked process can write to it.
+
+## 4.2
+- Renamed to **DuckDevicePolicy** and rebuilt the UI to match the Duck module series:
+  duck in the header, light/dark/system theme button, and Status / Categories /
+  Diagnostics tabs instead of one long list.
+- Categories are split into **Device-wide** (need System Framework in the scope) and
+  **App-facing** (need the target app in the scope) — the distinction that decides
+  whether a category can work at all.
+- The Status tab reports the framework, its version, the Xposed API level and the
+  module's actual scope, and says plainly when System Framework is missing.
+
 ## 4.1
 - **Sideloading works again.** Two new categories hook
   `com.android.server.pm.UserManagerService` inside system_server — the place the
