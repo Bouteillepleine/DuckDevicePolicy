@@ -9,6 +9,8 @@ Makes apps see **no device-policy restrictions** on your own device —
 category, behind a master toggle. Formerly DuckPolicy, same package. Fork of
 [liyafe1997/FuckDevicePolicy](https://github.com/liyafe1997/FuckDevicePolicy).
 
+<img src="screenshot.png" width="300" alt="DuckDevicePolicy" />
+
 **Needs an LSPosed 2.x fork** (Xposed API 101+). Mainline 1.9.x will not load it.
 
 **Scope matters.** `android` (System Framework) for the device-wide categories —
