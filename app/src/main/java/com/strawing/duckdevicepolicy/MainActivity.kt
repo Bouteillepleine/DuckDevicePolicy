@@ -188,7 +188,7 @@ class MainActivity : AppCompatActivity() {
     // ------------------------------------------------------------------ diagnostics
 
     private fun renderDiagnostics() {
-        ui.content.addView(ui.sectionLabel("What this device enforces"))
+        ui.content.addView(ui.sectionLabel("What an app sees right now"))
         val state = ui.outlinedCard()
         val stateCol = ui.column()
         val um = getSystemService(UserManager::class.java)
@@ -203,13 +203,18 @@ class MainActivity : AppCompatActivity() {
         }.getOrDefault(0)
         stateCol.addView(ui.thinDivider())
         stateCol.addView(ui.statRow("active device admins", admins.toString(), admins > 0))
+        stateCol.addView(ui.noteRow("The admin count comes from a different path and is not touched by the device-wide hooks."))
+        val deviceWideOn = prefs.getBoolean(Prefs.KEY_MASTER, true) && DEVICE_WIDE_KEYS.any {
+            prefs.getBoolean(Prefs.key(it), Restrictions.CATEGORY_BY_KEY[it]?.defaultOn ?: true)
+        }
         stateCol.addView(
             ui.noteRow(
-                if (anySet || admins > 0) {
-                    "Read live, from this app, which is not in the module scope — so these are the real values, not what the hooks show other apps. Something is set here, which is what the matching category is for."
-                } else {
-                    "Read live, from this app, which is not in the module scope — so these are the real values, not what the hooks show other apps. Nothing is set, so the matching categories have nothing to clear on this device."
-                }
+                "Asked live, the same way any app asks. The answer comes from system_server, which is where the device-wide hooks live — so this is what an app is told, not what your admin set." +
+                    if (deviceWideOn) {
+                        " With those categories on, a key reads \"not set\" whether it was never set or the bypass is clearing it. For the unfiltered truth: adb shell dumpsys user."
+                    } else {
+                        " The device-wide categories are off, so nothing is being cleared and these are the set values."
+                    }
             )
         )
         state.addView(stateCol)
@@ -320,6 +325,7 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val DIAG_PREFIX = "diag-"
+        val DEVICE_WIDE_KEYS = listOf(Restrictions.PACKAGE_INSTALL, Restrictions.DEBUGGING)
         val RESTRICTION_KEYS = listOf(
             "no_install_unknown_sources",
             "no_install_unknown_sources_globally",

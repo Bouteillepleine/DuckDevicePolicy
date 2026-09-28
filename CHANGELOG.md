@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.6
+- Diagnostics claimed it showed the real restriction values. It didn't: the answer comes
+  from system_server, where the device-wide hooks are, so it is what an app is told.
+  Relabelled, with the caveat and where to get the truth. Long keys wrap properly now.
+
 ## 4.5
 - Diagnostics tab shows which restrictions your device actually has, and says the hook
   report lives in the LSPosed log instead of pretending it will turn up here.

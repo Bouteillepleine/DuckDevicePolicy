@@ -311,11 +311,12 @@ class DuckUi(private val activity: Activity) {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(6), 0, dp(6))
             addView(TextView(activity).apply {
-                text = label
+                text = label.replace("_", "_​")
                 setTextColor(onSurface)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
                 typeface = Typeface.MONOSPACE
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                    .apply { rightMargin = dp(8) }
             })
             addView(chip(value, highlight))
         }
