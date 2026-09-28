@@ -13,10 +13,12 @@ category, behind a master toggle. Formerly DuckPolicy, same package. Fork of
 
 **Needs an LSPosed 2.x fork** (Xposed API 101+). Mainline 1.9.x will not load it.
 
-**Scope matters.** a framework entry (`android`, `system` or `system_server` — tick all three, managers disagree) for the device-wide categories —
-app install / uninstall, developer options, device-owner spoof. The target app for
-everything else, including the device-owner checks Google Photos reads for Locked
-Folder. Never scope Intune / Company Portal / Authenticator.
+**Scope matters.** Tick every framework entry your manager offers — `android`,
+`system`, `system_server`; they disagree about which one actually reaches
+system_server, and the wrong one silently does nothing. That covers the device-wide
+categories: app install / uninstall, developer options, device-owner spoof. The
+target app for everything else, including the device-owner checks Google Photos
+reads for Locked Folder. Never scope Intune / Company Portal / Authenticator.
 
 **Not working?** The LSPosed log has `installed N/M hooks in <process>`, which
 names anything that did not resolve, and `first hit: <category> ...` the first time
