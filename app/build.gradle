@@ -14,8 +14,8 @@ android {
         // implements the modern API runs on anything older anyway.
         minSdk 26
         targetSdk 35
-        versionCode 8
-        versionName "4.3"
+        versionCode 9
+        versionName "4.4"
     }
 
     // Project signing key ships in the repo (app/duckpolicy.jks). It is

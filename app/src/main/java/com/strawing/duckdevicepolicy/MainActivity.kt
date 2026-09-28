@@ -107,13 +107,16 @@ class MainActivity : AppCompatActivity() {
             scope == null -> scCol.addView(ui.bodyText(getString(R.string.hint_no_framework)))
             scope.isEmpty() -> scCol.addView(ui.bodyText(getString(R.string.hint_empty_scope)))
             else -> {
-                scope.forEach { scCol.addView(ui.infoRow(it, if (it == "android") "system_server" else "app")) }
+                scope.forEach {
+                    scCol.addView(ui.infoRow(it, if (it in FRAMEWORK_SCOPES) "framework" else "app"))
+                }
+                val framework = scope.filter { it in FRAMEWORK_SCOPES }
                 scCol.addView(
                     ui.noteRow(
-                        if (scope.contains("android")) {
-                            "System Framework is scoped, so the device-wide categories can work. App-facing categories only affect the apps listed above."
+                        if (framework.isEmpty()) {
+                            "No framework entry is scoped, so the device-wide categories cannot work. Managers name it differently — android, system or system_server — and ticking the wrong one does nothing. Tick every one your manager offers."
                         } else {
-                            "System Framework (android) is NOT scoped. The device-wide categories — app install / uninstall and developer options — cannot work without it."
+                            "Scoped as ${framework.joinToString(", ")}. If a device-wide category still does nothing, tick the other framework entries too: managers disagree about which of android / system / system_server actually reaches system_server, and only the right one works. The LSPosed log line \"installed N/M hooks in system_server\" is the proof."
                         }
                     )
                 )
@@ -132,7 +135,7 @@ class MainActivity : AppCompatActivity() {
         ui.content.addView(ui.sectionLabel("Device-wide", allNoneActions(enabled)))
         addCategoryCard(Restrictions.CATEGORIES.filter { it.deviceWide }, enabled)
         ui.content.addView(
-            ui.noteRow("These rewrite the answer system_server gives every process, so they work without scoping each app — but they need System Framework (android) in the module scope. The device-owner spoof is off by default: it reaches apps you never scoped and can confuse Settings on a device that really is managed.")
+            ui.noteRow("These rewrite the answer system_server gives every process, so they work without scoping each app — but they need a framework entry in the module scope — android, system or system_server, depending on what your manager calls it; tick all of them. The device-owner spoof is off by default: it reaches apps you never scoped and can confuse Settings on a device that really is managed.")
         )
 
         ui.content.addView(ui.sectionLabel("App-facing"))
@@ -212,7 +215,7 @@ class MainActivity : AppCompatActivity() {
         val helpCol = ui.column()
         helpCol.addView(
             ui.bodyText(
-                "If a restriction is still enforced, the useful facts are: your Android version and ROM, the Xposed framework and its version, whether System Framework (android) is in the scope above, and what this Diagnostics tab shows."
+                "If a restriction is still enforced, the useful facts are: your Android version and ROM, the Xposed framework and its version, which framework entries (android / system / system_server) are in the scope above, and what this Diagnostics tab shows."
             )
         )
         helpCol.addView(
@@ -305,6 +308,7 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val DIAG_PREFIX = "diag-"
+        val FRAMEWORK_SCOPES = setOf("android", "system", "system_server")
         const val ISSUES_URL = "https://github.com/Bouteillepleine/DuckDevicePolicy/issues"
     }
 }
