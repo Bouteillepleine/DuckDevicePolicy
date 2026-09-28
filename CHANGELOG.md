@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.5
+- Diagnostics tab shows which restrictions your device actually has, and says the hook
+  report lives in the LSPosed log instead of pretending it will turn up here.
+
 ## 4.4
 - Device-wide categories only worked if you ticked the right framework scope entry.
   `android`, `system` and `system_server` are all recommended now. Found by @victay44.

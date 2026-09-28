@@ -1,10 +1,10 @@
 package com.strawing.duckdevicepolicy
 
 import android.content.Context
-import android.content.Intent
+import android.app.admin.DevicePolicyManager
 import android.content.SharedPreferences
-import android.net.Uri
 import android.os.Bundle
+import android.os.UserManager
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import io.github.libxposed.service.XposedService
@@ -188,42 +188,58 @@ class MainActivity : AppCompatActivity() {
     // ------------------------------------------------------------------ diagnostics
 
     private fun renderDiagnostics() {
-        val reports = readReports()
-        ui.content.addView(ui.sectionLabel("Hook reports"))
-        val card = ui.outlinedCard()
-        val col = ui.column()
-        if (reports.isEmpty()) {
-            col.addView(
-                ui.bodyText(
-                    "No report yet. A report appears once a scoped process has started with this build — reboot, or force-stop a scoped app, then come back.\n\nEvery report is also written to the LSPosed log, which is the only place it can appear when the framework refuses this module a file inside system_server. Look for \"installed N/M hooks\" and the \"unresolved:\" list next to it."
-                )
-            )
-        } else {
-            reports.forEachIndexed { index, report ->
-                if (index > 0) col.addView(ui.thinDivider())
-                col.addView(ui.infoRow(report.where, report.installed))
-                report.rows.forEach { (label, value) ->
-                    col.addView(ui.statRow(label, value, value == "0" || value.startsWith("missing")))
+        ui.content.addView(ui.sectionLabel("What this device enforces"))
+        val state = ui.outlinedCard()
+        val stateCol = ui.column()
+        val um = getSystemService(UserManager::class.java)
+        var anySet = false
+        RESTRICTION_KEYS.forEach { key ->
+            val set = runCatching { um?.hasUserRestriction(key) == true }.getOrDefault(false)
+            if (set) anySet = true
+            stateCol.addView(ui.statRow(key, if (set) "set" else "not set", set))
+        }
+        val admins = runCatching {
+            getSystemService(DevicePolicyManager::class.java)?.activeAdmins?.size ?: 0
+        }.getOrDefault(0)
+        stateCol.addView(ui.thinDivider())
+        stateCol.addView(ui.statRow("active device admins", admins.toString(), admins > 0))
+        stateCol.addView(
+            ui.noteRow(
+                if (anySet || admins > 0) {
+                    "Read live, from this app, which is not in the module scope — so these are the real values, not what the hooks show other apps. Something is set here, which is what the matching category is for."
+                } else {
+                    "Read live, from this app, which is not in the module scope — so these are the real values, not what the hooks show other apps. Nothing is set, so the matching categories have nothing to clear on this device."
                 }
+            )
+        )
+        state.addView(stateCol)
+        ui.content.addView(state)
+
+        ui.content.addView(ui.sectionLabel("Where the hook report is"))
+        val where = ui.outlinedCard()
+        val whereCol = ui.column()
+        whereCol.addView(
+            ui.bodyText(
+                "In the LSPosed log, not here. The framework's file store for a module is root-owned, so a hooked process cannot write into it — this screen has no way to receive the report."
+            )
+        )
+        whereCol.addView(ui.thinDivider())
+        whereCol.addView(ui.statRow("installed N/M hooks in …", "per process", false))
+        whereCol.addView(ui.statRow("first hit: <category> …", "when it fires", false))
+        whereCol.addView(
+            ui.noteRow(
+                "Open your manager's log, filter for this module, and look for those two. The first names anything that did not resolve; the second appears the first time a category actually does something. If a category never appears, it never fired — usually a scope that does not reach system_server."
+            )
+        )
+        readReports().forEach { report ->
+            whereCol.addView(ui.thinDivider())
+            whereCol.addView(ui.infoRow(report.where, report.installed))
+            report.rows.forEach { (label, value) ->
+                whereCol.addView(ui.statRow(label, value, value == "0" || value.startsWith("missing")))
             }
         }
-        card.addView(col)
-        ui.content.addView(card)
-
-        ui.content.addView(ui.sectionLabel("Reporting a problem"))
-        val help = ui.outlinedCard()
-        val helpCol = ui.column()
-        helpCol.addView(
-            ui.bodyText(
-                "If a restriction is still enforced, the useful facts are: your Android version and ROM, the Xposed framework and its version, which framework entries (android / system / system_server) are in the scope above, and what this Diagnostics tab shows."
-            )
-        )
-        helpCol.addView(
-            ui.noteRow("adb shell dumpsys device_policy — look under userRestrictions: to see which DISALLOW_* keys your admin actually set.")
-        )
-        helpCol.addView(ui.linkRow("Open the issue tracker") { openUrl(ISSUES_URL) })
-        help.addView(helpCol)
-        ui.content.addView(help)
+        where.addView(whereCol)
+        ui.content.addView(where)
     }
 
     private data class Report(val where: String, val installed: String, val rows: List<Pair<String, String>>)
@@ -254,10 +270,6 @@ class MainActivity : AppCompatActivity() {
             .filter { it.key != "where" && it.key != "installed" }
             .map { it.key to it.value }
         return Report(where, installed, rows)
-    }
-
-    private fun openUrl(url: String) {
-        runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
     }
 
     // ------------------------------------------------------------------ preferences
@@ -308,7 +320,13 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val DIAG_PREFIX = "diag-"
+        val RESTRICTION_KEYS = listOf(
+            "no_install_unknown_sources",
+            "no_install_unknown_sources_globally",
+            "no_install_apps",
+            "no_uninstall_apps",
+            "no_debugging_features",
+        )
         val FRAMEWORK_SCOPES = setOf("android", "system", "system_server")
-        const val ISSUES_URL = "https://github.com/Bouteillepleine/DuckDevicePolicy/issues"
     }
 }
