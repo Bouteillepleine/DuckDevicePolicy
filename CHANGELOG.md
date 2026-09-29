@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.7
+- Fixed a bootloop on devices that really have a device owner. The ownership spoof also
+  answered system_server's own checks, so DevicePolicyManagerService threw at
+  PHASE_LOCK_SETTINGS_READY and took the system down in a loop. It now answers apps only.
+  Reported by @MootComb.
+
 ## 4.6
 - Diagnostics claimed it showed the real restriction values. It didn't: the answer comes
   from system_server, where the device-wide hooks are, so it is what an app is told.

@@ -73,7 +73,7 @@ object Restrictions {
         Category(
             OWNER_SERVER,
             "Device-owner spoof, device-wide",
-            "Answer \"no device owner\" for every app, without scoping each one",
+            "Answer \"no device owner\" to apps, without scoping each one. Leave off unless you need it",
             deviceWide = true,
             defaultOn = false,
         ),
