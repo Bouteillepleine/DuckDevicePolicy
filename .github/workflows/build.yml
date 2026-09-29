@@ -27,6 +27,13 @@ jobs:
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      # The release variant is the one users install, and it is the only one that runs R8,
+      # resource shrinking and -adaptresourcefilecontents on the Xposed entry-point list. A
+      # tag-only release workflow means a broken shrinker config first shows up as a published
+      # module the framework cannot load.
+      - name: Build release APK
+        run: ./gradlew :app:assembleRelease --stacktrace
+
       - uses: actions/upload-artifact@v4
         with:
           name: DuckDevicePolicy-debug
