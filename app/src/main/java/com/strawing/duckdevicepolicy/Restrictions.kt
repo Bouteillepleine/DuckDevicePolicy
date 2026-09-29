@@ -81,6 +81,8 @@ object Restrictions {
 
     val CATEGORY_BY_KEY: Map<String, Category> = CATEGORIES.associateBy { it.key }
 
+    fun isDeviceWide(spec: Spec): Boolean = CATEGORY_BY_KEY[spec.category]?.deviceWide == true
+
     data class Spec(
         val category: String,
         val className: String,

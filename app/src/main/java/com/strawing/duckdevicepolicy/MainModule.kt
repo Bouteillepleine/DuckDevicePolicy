@@ -1,9 +1,7 @@
 package com.strawing.duckdevicepolicy
 
 import android.content.SharedPreferences
-import android.os.Binder
 import android.os.ParcelFileDescriptor
-import android.os.Process
 import android.os.SystemClock
 import android.util.Log
 import io.github.libxposed.api.XposedInterface
@@ -52,6 +50,7 @@ class MainModule : XposedModule() {
         Restrictions.CATEGORY_BY_KEY[category]?.defaultOn ?: Prefs.CATEGORY_DEFAULT
 
     override fun onModuleLoaded(param: ModuleLoadedParam) {
+        isSystemServer = param.isSystemServer
         log(Log.INFO, TAG, "loaded proc=${param.processName} systemServer=${param.isSystemServer} " +
             "framework=$frameworkName($frameworkVersionCode) API $apiVersion")
     }
@@ -72,7 +71,10 @@ class MainModule : XposedModule() {
     private fun installFrameworkHooks(classLoader: ClassLoader, where: String) {
         if (!frameworkHooked.compareAndSet(false, true)) return
         this.where = where
-        install(Restrictions.ALL.filter { it.pkg == null }, classLoader, where)
+        val rows = Restrictions.ALL.filter {
+            it.pkg == null && Restrictions.isDeviceWide(it) == isSystemServer
+        }
+        install(rows, classLoader, where)
     }
 
     /**
@@ -158,20 +160,8 @@ class MainModule : XposedModule() {
         return null
     }
 
-    /**
-     * Ownership answers are for apps asking, never for the framework asking itself.
-     * `DevicePolicyManagerService` and `ConnectivityService` both read device-owner state on the
-     * boot path and throw if it contradicts what they already hold; a spoofed answer there took
-     * system_server down in a loop at PHASE_LOCK_SETTINGS_READY. Inside system_server a call
-     * that is not serving a binder transaction is the framework's own, and gets the truth.
-     */
-    private fun servingRemoteCaller(): Boolean =
-        runCatching { Binder.getCallingPid() != Process.myPid() }.getOrDefault(true)
-
     private fun hookerFor(spec: Restrictions.Spec) = XposedInterface.Hooker { chain ->
-        val ownershipInFramework =
-            spec.category in OWNERSHIP_CATEGORIES && isSystemServer && !servingRemoteCaller()
-        if (!ownershipInFramework && bypass(spec.category) && appliesTo(spec, chain)) {
+        if (bypass(spec.category) && appliesTo(spec, chain)) {
             val count = hits.getOrPut(spec.category) { AtomicLong() }.incrementAndGet()
             if (count == 1L) {
                 // One line per category for the life of the process. "Did this category ever
@@ -261,11 +251,6 @@ class MainModule : XposedModule() {
 
     private companion object {
         const val TAG = "DuckDevicePolicy"
-        val OWNERSHIP_CATEGORIES = setOf(
-            Restrictions.ADMIN,
-            Restrictions.OWNER,
-            Restrictions.OWNER_SERVER,
-        )
         const val FLUSH_INTERVAL_MS = 5000L
     }
 }
