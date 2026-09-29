@@ -41,7 +41,7 @@ class MainModule : XposedModule() {
     }
 
     private fun bypass(category: String): Boolean {
-        val p = prefs ?: return defaultFor(category)
+        val p = prefs ?: return false
         if (!p.getBoolean(Prefs.KEY_MASTER, true)) return false
         return p.getBoolean(Prefs.key(category), defaultFor(category))
     }
