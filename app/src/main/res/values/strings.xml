@@ -11,6 +11,8 @@
     <string name="select_all">All</string>
     <string name="select_none">None</string>
 
+    <string name="settings_read_only">The framework did not grant write access to this module\'s settings, so the change was not saved.</string>
+
     <string name="hint_no_framework">LSPosed framework not detected. This build needs a framework implementing the modern Xposed API 101+ — mainline LSPosed 1.9.x will not load it. Until one binds, these switches are saved locally and reach no hooks.</string>
     <string name="hint_empty_scope">This module\'s LSPosed scope is empty, so it hooks nothing. Add your target apps (or \"System Framework\") in LSPosed, then restart them.</string>
     <string name="hint_scope">Scope: %1$s. Only these are affected; restart them after a scope change. The toggles below apply live — no reboot needed.</string>

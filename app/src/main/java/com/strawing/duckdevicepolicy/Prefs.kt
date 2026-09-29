@@ -23,6 +23,11 @@ object Prefs {
      */
     const val KEY_IMPORTED = "prefs_imported_v4"
 
+    /** The shipped default for any key [allKeys] returns. */
+    fun defaultFor(key: String): Boolean =
+        if (key == KEY_MASTER) true
+        else Restrictions.CATEGORY_BY_KEY[key.removePrefix("cat_")]?.defaultOn ?: CATEGORY_DEFAULT
+
     /** Every key worth carrying across the move to remote preferences. */
     fun allKeys(): List<String> =
         listOf(KEY_MASTER) + Restrictions.CATEGORIES.map { key(it.key) }

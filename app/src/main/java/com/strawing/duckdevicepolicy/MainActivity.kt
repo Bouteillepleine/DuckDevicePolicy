@@ -6,9 +6,9 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.UserManager
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import io.github.libxposed.service.XposedService
-import java.io.FileInputStream
 
 class MainActivity : AppCompatActivity() {
 
@@ -79,7 +79,7 @@ class MainActivity : AppCompatActivity() {
                 master,
                 usingRemotePrefs,
             ) { checked ->
-                prefs.edit()?.putBoolean(Prefs.KEY_MASTER, checked)?.apply()
+                write { putBoolean(Prefs.KEY_MASTER, checked) }
                 render()
             }
         )
@@ -131,25 +131,30 @@ class MainActivity : AppCompatActivity() {
     private fun renderCategories() {
         val master = prefs.getBoolean(Prefs.KEY_MASTER, true)
         val enabled = master && usingRemotePrefs
+        val deviceWide = Restrictions.CATEGORIES.filter { it.deviceWide }
+        val appFacing = Restrictions.CATEGORIES.filter { !it.deviceWide }
 
-        ui.content.addView(ui.sectionLabel("Device-wide", allNoneActions(enabled)))
-        addCategoryCard(Restrictions.CATEGORIES.filter { it.deviceWide }, enabled)
+        ui.content.addView(ui.sectionLabel("Device-wide", allNoneActions(enabled, deviceWide)))
+        addCategoryCard(deviceWide, enabled)
         ui.content.addView(
-            ui.noteRow("These rewrite the answer system_server gives every process, so they work without scoping each app — but they need a framework entry in the module scope — android, system or system_server, depending on what your manager calls it; tick all of them. The device-owner spoof is off by default: it reaches apps you never scoped and can confuse Settings on a device that really is managed.")
+            ui.noteRow("These rewrite the answer system_server gives every process, so they work without scoping each app — but they need a framework entry in the module scope — android, system or system_server, depending on what your manager calls it; tick all of them. The device-owner spoof is off by default: it reaches apps you never scoped and can confuse Settings on a device that really is managed, so All leaves it alone — turn it on yourself.")
         )
 
-        ui.content.addView(ui.sectionLabel("App-facing"))
-        addCategoryCard(Restrictions.CATEGORIES.filter { !it.deviceWide }, enabled)
+        ui.content.addView(ui.sectionLabel("App-facing", allNoneActions(enabled, appFacing)))
+        addCategoryCard(appFacing, enabled)
         ui.content.addView(
             ui.noteRow("These change what a scoped app sees when it asks. An app that is not in the module scope is unaffected.")
         )
     }
 
-    private fun allNoneActions(enabled: Boolean): LinearLayout = LinearLayout(this).apply {
+    private fun allNoneActions(
+        enabled: Boolean,
+        categories: List<Restrictions.Category>,
+    ): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
         alpha = if (enabled) 1f else 0.45f
-        addView(ui.textAction("All") { if (enabled) setAll(true) })
-        addView(ui.textAction("None") { if (enabled) setAll(false) })
+        addView(ui.textAction("All") { if (enabled) setAll(categories.filter { it.defaultOn }, true) })
+        addView(ui.textAction("None") { if (enabled) setAll(categories, false) })
     }
 
     private fun addCategoryCard(categories: List<Restrictions.Category>, enabled: Boolean) {
@@ -166,7 +171,7 @@ class MainActivity : AppCompatActivity() {
                     prefs.getBoolean(Prefs.key(cat.key), cat.defaultOn),
                     enabled,
                 ) { value ->
-                    prefs.edit()?.putBoolean(Prefs.key(cat.key), value)?.apply()
+                    if (!write { putBoolean(Prefs.key(cat.key), value) }) render()
                 }
             )
         }
@@ -174,12 +179,21 @@ class MainActivity : AppCompatActivity() {
         ui.content.addView(card)
     }
 
-    private fun setAll(value: Boolean) {
-        if (!prefs.getBoolean(Prefs.KEY_MASTER, true)) return
-        val edit = prefs.edit() ?: return
-        Restrictions.CATEGORIES.forEach { edit.putBoolean(Prefs.key(it.key), value) }
-        edit.apply()
+    private fun setAll(categories: List<Restrictions.Category>, value: Boolean) {
+        if (!prefs.getBoolean(Prefs.KEY_MASTER, true) || categories.isEmpty()) return
+        write { categories.forEach { putBoolean(Prefs.key(it.key), value) } }
         render()
+    }
+
+    private fun write(block: SharedPreferences.Editor.() -> Unit): Boolean {
+        val edit = prefs.edit()
+        if (edit == null) {
+            Toast.makeText(this, R.string.settings_read_only, Toast.LENGTH_LONG).show()
+            return false
+        }
+        edit.block()
+        edit.apply()
+        return true
     }
 
     private fun enabledCount(): Int =
@@ -236,45 +250,8 @@ class MainActivity : AppCompatActivity() {
                 "Open your manager's log, filter for this module, and look for those two. The first names anything that did not resolve; the second appears the first time a category actually does something. If a category never appears, it never fired — usually a scope that does not reach system_server."
             )
         )
-        readReports().forEach { report ->
-            whereCol.addView(ui.thinDivider())
-            whereCol.addView(ui.infoRow(report.where, report.installed))
-            report.rows.forEach { (label, value) ->
-                whereCol.addView(ui.statRow(label, value, value == "0" || value.startsWith("missing")))
-            }
-        }
         where.addView(whereCol)
         ui.content.addView(where)
-    }
-
-    private data class Report(val where: String, val installed: String, val rows: List<Pair<String, String>>)
-
-    private fun readReports(): List<Report> {
-        val svc = App.service ?: return emptyList()
-        val names = runCatching { svc.listRemoteFiles() }.getOrNull() ?: return emptyList()
-        return names.filter { it.startsWith(DIAG_PREFIX) && it.endsWith(".txt") }.sorted().mapNotNull { name ->
-            val text = runCatching {
-                svc.openRemoteFile(name)?.use { pfd ->
-                    FileInputStream(pfd.fileDescriptor).use { it.readBytes().decodeToString() }
-                }
-            }.getOrNull() ?: return@mapNotNull null
-            if (text.isBlank()) return@mapNotNull null
-            parseReport(name, text)
-        }
-    }
-
-    private fun parseReport(name: String, text: String): Report {
-        val map = LinkedHashMap<String, String>()
-        text.lineSequence().forEach { line ->
-            val i = line.indexOf('=')
-            if (i > 0) map[line.substring(0, i).trim()] = line.substring(i + 1).trim()
-        }
-        val where = map["where"] ?: name.removePrefix(DIAG_PREFIX).removeSuffix(".txt")
-        val installed = map["installed"] ?: "?"
-        val rows = map.entries
-            .filter { it.key != "where" && it.key != "installed" }
-            .map { it.key to it.value }
-        return Report(where, installed, rows)
     }
 
     // ------------------------------------------------------------------ preferences
@@ -302,7 +279,7 @@ class MainActivity : AppCompatActivity() {
         val edit = remote.edit() ?: return
         legacy?.let {
             for (key in Prefs.allKeys()) {
-                if (it.contains(key)) edit.putBoolean(key, it.getBoolean(key, true))
+                if (it.contains(key)) edit.putBoolean(key, it.getBoolean(key, Prefs.defaultFor(key)))
             }
         }
         edit.putBoolean(Prefs.KEY_IMPORTED, true).apply()
@@ -324,7 +301,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
-        const val DIAG_PREFIX = "diag-"
         val DEVICE_WIDE_KEYS = listOf(Restrictions.PACKAGE_INSTALL, Restrictions.DEBUGGING)
         val RESTRICTION_KEYS = listOf(
             "no_install_unknown_sources",
