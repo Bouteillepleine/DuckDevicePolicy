@@ -13,12 +13,13 @@ category, behind a master toggle. Formerly DuckPolicy, same package. Fork of
 
 **Needs an LSPosed 2.x fork** (Xposed API 101+). Mainline 1.9.x will not load it.
 
-**Scope matters.** Tick every framework entry your manager offers — `android`,
-`system`, `system_server`; they disagree about which one actually reaches
-system_server, and the wrong one silently does nothing. That covers the device-wide
-categories: app install / uninstall, developer options, device-owner spoof. The
-target app for everything else, including the device-owner checks Google Photos
-reads for Locked Folder. Never scope Intune / Company Portal / Authenticator.
+**Scope matters.** Tick every framework entry your manager offers — `android`, `system`,
+`system_server` — or the device-wide categories do nothing. Everything else only affects
+apps you scope; Photos (Locked Folder) and Outlook are recommended.
+
+**Never scope Intune / Company Portal / Authenticator** — they enforce policy rather than
+read it, so spoofing them just triggers compliance retries or a remote wipe. Teams and other
+MAM apps don't use `DevicePolicyManager` at all.
 
 **Not working?** The LSPosed log has `installed N/M hooks in <process>`, followed by
 `unresolved in <process> [n]: ...` naming every row that did not resolve, and
