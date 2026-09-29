@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.8
+- App-facing categories now run only in apps you scope; system_server keeps the device-wide
+  ones. Deletes 4.7's caller guard, and the bootloop class it was patching.
+- Sideloading: the restriction bundle is filtered too, not just the boolean checks, so
+  session installs and uninstalls go through.
+- Unreadable settings switch the module off instead of defaulting everything on.
+- Google Photos is a recommended scope entry; the README says why the Intune apps never are.
+- The log names every unresolved row, per category, instead of the first 400 characters.
+- All / None act on their own section, and All leaves the device-owner spoof alone.
+- Settings that fail to save say so.
+- Dropped the Diagnostics report card the framework can never fill.
+- Clearer scope wording in the app.
+- CI builds the release variant.
+
 ## 4.7
 - Fixed a bootloop on devices that really have a device owner. The ownership spoof also
   answered system_server's own checks, so DevicePolicyManagerService threw at
