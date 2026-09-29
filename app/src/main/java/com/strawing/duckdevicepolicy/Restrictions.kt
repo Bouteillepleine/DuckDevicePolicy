@@ -95,6 +95,7 @@ object Restrictions {
         val result: () -> Any? = { null },
     ) {
         val id: String get() = "${className.substringAfterLast('.')}#$method"
+        val key: String get() = "$category|$id|${paramTypes.joinToString(",")}"
     }
 
     private fun bundle(): Any = Bundle()

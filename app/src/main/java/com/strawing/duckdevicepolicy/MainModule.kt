@@ -1,20 +1,17 @@
 package com.strawing.duckdevicepolicy
 
 import android.content.SharedPreferences
-import android.os.ParcelFileDescriptor
-import android.os.SystemClock
 import android.util.Log
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
-import java.io.FileOutputStream
 import java.lang.reflect.Method
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 class MainModule : XposedModule() {
@@ -31,14 +28,10 @@ class MainModule : XposedModule() {
     private val hits = ConcurrentHashMap<String, AtomicLong>()
     private val resolution = ConcurrentHashMap<String, String>()
     private val loaderUsed = ConcurrentHashMap<String, String>()
-    private var installedCount = 0
-    private var totalCount = 0
-    private var where = "?"
-    private var isSystemServer = false
-    private val lastFlush = AtomicLong(0)
-    private val writer by lazy {
-        Executors.newSingleThreadExecutor { r -> Thread(r, "duck-diag").apply { isDaemon = true } }
-    }
+    private val installedCount = AtomicInteger(0)
+    private val totalCount = AtomicInteger(0)
+    @Volatile private var where = "?"
+    @Volatile private var isSystemServer = false
 
     private fun bypass(category: String): Boolean {
         val p = prefs ?: return false
@@ -103,7 +96,7 @@ class MainModule : XposedModule() {
         for (spec in specs) {
             val (clazz, loader) = resolveClass(spec.className, classLoader)
             if (clazz == null) {
-                resolution[spec.id] = "no-class"
+                resolution[spec.key] = "no-class"
                 loaderUsed[spec.className.substringAfterLast('.')] = "none"
                 continue
             }
@@ -112,34 +105,34 @@ class MainModule : XposedModule() {
                 Array<Class<*>>(spec.paramTypes.size) { paramClass(spec.paramTypes[it], clazz.classLoader ?: classLoader) }
             }.getOrNull()
             if (params == null) {
-                resolution[spec.id] = "no-params"
+                resolution[spec.key] = "no-params"
                 continue
             }
             val method = findMethod(clazz, spec.method, params)
             if (method == null) {
-                resolution[spec.id] = "no-method"
+                resolution[spec.key] = "no-method"
                 continue
             }
             val hooked = runCatching { hook(method).intercept(hookerFor(spec)) }.isSuccess
-            resolution[spec.id] = if (hooked) "ok" else "hook-failed"
+            resolution[spec.key] = if (hooked) "ok" else "hook-failed"
             if (hooked) installed++
         }
-        installedCount += installed
-        totalCount += specs.size
+        installedCount.addAndGet(installed)
+        totalCount.addAndGet(specs.size)
+        val unresolved = specs.mapNotNull { s ->
+            resolution[s.key]?.takeIf { it != "ok" }?.let { "${s.category}/${s.id}=$it" }
+        }.distinct()
         log(
             if (installed == 0) Log.ERROR else Log.INFO,
             TAG,
             "installed $installed/${specs.size} hooks in $where" +
-                summariseFailures(specs).let { if (it.isEmpty()) "" else " | unresolved: $it" }
+                if (unresolved.isEmpty()) "" else " | ${unresolved.size} unresolved"
         )
-        flush(force = true)
+        unresolved.chunked(UNRESOLVED_PER_LINE).forEachIndexed { index, chunk ->
+            log(Log.ERROR, TAG, "unresolved in $where [${index + 1}]: ${chunk.joinToString(", ")}")
+        }
+        logReport()
     }
-
-    private fun summariseFailures(specs: List<Restrictions.Spec>): String =
-        specs.mapNotNull { s -> resolution[s.id]?.takeIf { it != "ok" }?.let { "${s.id}=$it" } }
-            .distinct()
-            .joinToString(", ")
-            .take(400)
 
     private fun paramClass(name: String, classLoader: ClassLoader): Class<*> = when (name) {
         "int" -> Integer.TYPE
@@ -183,7 +176,6 @@ class MainModule : XposedModule() {
             // zero looks exactly like a category that is working.
             log(Log.INFO, TAG, "first hit: ${spec.category} via ${spec.id} in $where")
         }
-        flush(force = false)
     }
 
     /**
@@ -203,64 +195,34 @@ class MainModule : XposedModule() {
     // ------------------------------------------------------------------ diagnostics
 
     /**
-     * The hook side cannot write the remote preferences — they are read-only there — so the
-     * report travels through a remote file instead, which the UI opens with the same name.
-     * Never on the calling thread: these hooks run inside system_server, on the path that is
-     * answering a binder call.
+     * The log, not a file. A hooked process cannot write the module's own remote-file store —
+     * it is root-owned, and inside system_server the framework simply says no — so a report
+     * written there would be one nobody can read back.
      */
-    private fun flush(force: Boolean) {
-        val now = SystemClock.elapsedRealtime()
-        val previous = lastFlush.get()
-        if (!force && now - previous < FLUSH_INTERVAL_MS) return
-        if (!lastFlush.compareAndSet(previous, now)) return
-        runCatching { writer.execute { writeReport(force) } }
-    }
-
-    private fun writeReport(logIt: Boolean) {
+    private fun logReport() {
         val text = buildString {
             append("where=").append(where).append('\n')
-            append("installed=").append(installedCount).append('/').append(totalCount).append('\n')
-            append("time=").append(System.currentTimeMillis()).append('\n')
+            append("installed=").append(installedCount.get()).append('/').append(totalCount.get()).append('\n')
             for ((simpleName, label) in loaderUsed.entries.sortedBy { it.key }) {
                 append("loader.").append(simpleName).append('=').append(label).append('\n')
             }
             for (category in Restrictions.CATEGORIES) {
-                val rows = Restrictions.ALL.filter { it.category == category.key }
+                val rows = Restrictions.ALL.filter {
+                    it.category == category.key && resolution.containsKey(it.key)
+                }
                 if (rows.isEmpty()) continue
-                val ok = rows.count { resolution[it.id] == "ok" }
+                val ok = rows.count { resolution[it.key] == "ok" }
                 if (ok == rows.size) continue
                 append("rows.").append(category.key).append('=')
                     .append("missing ").append(rows.size - ok).append(" of ").append(rows.size)
                     .append('\n')
             }
-            for ((category, count) in hits.entries.sortedBy { it.key }) {
-                append("hits.").append(category).append('=').append(count.get()).append('\n')
-            }
         }
-        val pfd: ParcelFileDescriptor? =
-            runCatching { openRemoteFile("diag-$where.txt") as ParcelFileDescriptor? }.getOrNull()
-        if (pfd == null) {
-            // The framework only hands out a descriptor where the module's own remote-file
-            // store is reachable; inside system_server it can simply say no. The report is
-            // the point, not the file, so fall back to the log the user can already read.
-            if (logIt) log(Log.INFO, TAG, "report ($where)\n$text")
-            return
-        }
-        runCatching { pfd.use { writeAll(it, text) } }
-            .onFailure { if (logIt) log(Log.INFO, TAG, "report ($where)\n$text") }
-    }
-
-    private fun writeAll(pfd: ParcelFileDescriptor, text: String) {
-        FileOutputStream(pfd.fileDescriptor).use { out ->
-            out.channel.truncate(0)
-            out.channel.position(0)
-            out.write(text.toByteArray())
-            out.flush()
-        }
+        log(Log.INFO, TAG, "report ($where)\n$text")
     }
 
     private companion object {
         const val TAG = "DuckDevicePolicy"
-        const val FLUSH_INTERVAL_MS = 5000L
+        const val UNRESOLVED_PER_LINE = 10
     }
 }
