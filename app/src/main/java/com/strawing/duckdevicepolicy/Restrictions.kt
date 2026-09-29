@@ -91,12 +91,21 @@ object Restrictions {
         val pkg: String? = null,
         val keys: Set<String>? = null,
         val keyArg: Int = 0,
-        val result: () -> Any?,
+        val transform: ((Any?) -> Any?)? = null,
+        val result: () -> Any? = { null },
     ) {
         val id: String get() = "${className.substringAfterLast('.')}#$method"
     }
 
     private fun bundle(): Any = Bundle()
+
+    private fun without(keys: Set<String>): (Any?) -> Any? = { value ->
+        if (value is Bundle && keys.any { value.getBoolean(it) }) {
+            Bundle(value).apply { keys.forEach { remove(it) } }
+        } else {
+            value
+        }
+    }
 
     private val INSTALL_KEYS = setOf(
         "no_install_unknown_sources",
@@ -113,6 +122,7 @@ object Restrictions {
         Spec(category, UMS, "getUserRestrictionSource", arrayOf(STR, INT), keys = keys) { 0 },
         Spec(category, UMS, "getUserRestrictionSources", arrayOf(STR, INT), keys = keys) { emptyList<Any>() },
         Spec(category, UMS_LOCAL, "getUserRestriction", arrayOf(INT, STR), keys = keys, keyArg = 1) { false },
+        Spec(category, UMS, "getUserRestrictions", arrayOf(INT), transform = without(keys)),
     )
 
     val ALL: List<Spec> = listOf(

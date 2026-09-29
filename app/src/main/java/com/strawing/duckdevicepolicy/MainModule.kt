@@ -161,19 +161,29 @@ class MainModule : XposedModule() {
     }
 
     private fun hookerFor(spec: Restrictions.Spec) = XposedInterface.Hooker { chain ->
-        if (bypass(spec.category) && appliesTo(spec, chain)) {
-            val count = hits.getOrPut(spec.category) { AtomicLong() }.incrementAndGet()
-            if (count == 1L) {
-                // One line per category for the life of the process. "Did this category ever
-                // fire?" is the question a bug report cannot otherwise answer, and a silent
-                // zero looks exactly like a category that is working.
-                log(Log.INFO, TAG, "first hit: ${spec.category} via ${spec.id} in $where")
-            }
-            flush(force = false)
+        val transform = spec.transform
+        if (!bypass(spec.category) || !appliesTo(spec, chain)) {
+            chain.proceed()
+        } else if (transform == null) {
+            countHit(spec)
             spec.result()
         } else {
-            chain.proceed()
+            val answer = chain.proceed()
+            val filtered = transform(answer)
+            if (filtered !== answer) countHit(spec)
+            filtered
         }
+    }
+
+    private fun countHit(spec: Restrictions.Spec) {
+        val count = hits.getOrPut(spec.category) { AtomicLong() }.incrementAndGet()
+        if (count == 1L) {
+            // One line per category for the life of the process. "Did this category ever
+            // fire?" is the question a bug report cannot otherwise answer, and a silent
+            // zero looks exactly like a category that is working.
+            log(Log.INFO, TAG, "first hit: ${spec.category} via ${spec.id} in $where")
+        }
+        flush(force = false)
     }
 
     /**
