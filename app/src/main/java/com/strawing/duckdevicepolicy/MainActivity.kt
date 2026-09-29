@@ -137,7 +137,7 @@ class MainActivity : AppCompatActivity() {
         ui.content.addView(ui.sectionLabel("Device-wide", allNoneActions(enabled, deviceWide)))
         addCategoryCard(deviceWide, enabled)
         ui.content.addView(
-            ui.noteRow("These cover every app at once, so you don't have to scope apps one by one. They need a framework entry in this module's scope: tick android, system and system_server — whichever of those your manager shows. All skips the device-owner spoof; switch that one on yourself.")
+            ui.noteRow("These cover every app at once, so you don't have to scope apps one by one. They need a framework entry in this module's scope: tick every entry it marks Recommended. All skips the device-owner spoof; switch that one on yourself.")
         )
 
         ui.content.addView(ui.sectionLabel("App-facing", allNoneActions(enabled, appFacing)))
