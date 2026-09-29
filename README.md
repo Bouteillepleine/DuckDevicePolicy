@@ -20,11 +20,17 @@ categories: app install / uninstall, developer options, device-owner spoof. The
 target app for everything else, including the device-owner checks Google Photos
 reads for Locked Folder. Never scope Intune / Company Portal / Authenticator.
 
-**Not working?** The LSPosed log has `installed N/M hooks in <process>`, which
-names anything that did not resolve, and `first hit: <category> ...` the first time
-one fires. Quote both when reporting.
+**Not working?** The LSPosed log has `installed N/M hooks in <process>`, followed by
+`unresolved in <process> [n]: ...` naming every row that did not resolve, and
+`first hit: <category> ...` the first time one fires. Quote those when reporting.
 
-Build with `./gradlew :app:assembleRelease` (JDK 17, compileSdk 36). The signing key
-is in the repo on purpose, like a debug key; a `v*` tag publishes a release.
+Build with `./gradlew :app:assembleRelease` (JDK 17, compileSdk 36). A `v*` tag publishes
+a release.
+
+**The signing key is in the repo on purpose** (`app/duckpolicy.jks`, password `duckpolicy`)
+so any checkout produces an installable, updateable APK with no secret setup. Know what that
+costs: a build is not evidence of origin, and anyone can produce an APK your device will
+accept as an in-place *update* to this module — which is code running in system_server. Install
+releases from this repo, or build it yourself.
 
 [CHANGELOG](CHANGELOG.md) · [LICENSE](LICENSE)
