@@ -137,7 +137,7 @@ class MainActivity : AppCompatActivity() {
         ui.content.addView(ui.sectionLabel("Device-wide", allNoneActions(enabled, deviceWide)))
         addCategoryCard(deviceWide, enabled)
         ui.content.addView(
-            ui.noteRow("These rewrite the answer system_server gives every process, so they work without scoping each app — but they need a framework entry in the module scope — android, system or system_server, depending on what your manager calls it; tick all of them. The device-owner spoof is off by default: it reaches apps you never scoped and can confuse Settings on a device that really is managed, so All leaves it alone — turn it on yourself.")
+            ui.noteRow("These cover every app at once, so you don't have to scope apps one by one. They need a framework entry in this module's scope: tick android, system and system_server — whichever of those your manager shows. All skips the device-owner spoof; switch that one on yourself.")
         )
 
         ui.content.addView(ui.sectionLabel("App-facing", allNoneActions(enabled, appFacing)))
