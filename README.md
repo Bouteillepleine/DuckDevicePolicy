@@ -15,7 +15,8 @@ category, behind a master toggle. Formerly DuckPolicy, same package. Fork of
 
 **Scope matters.** Tick every framework entry your manager offers — `android`, `system`,
 `system_server` — or the device-wide categories do nothing. Everything else only affects
-apps you scope; Photos (Locked Folder) and Outlook are recommended.
+apps you scope; Outlook is recommended, and Photos as belt and braces. Locked Folder
+itself is answered device-wide by the device-owner spoof, not inside Photos.
 
 **Never scope Intune / Company Portal / Authenticator** — they enforce policy rather than
 read it, so spoofing them just triggers compliance retries or a remote wipe. Teams and other
