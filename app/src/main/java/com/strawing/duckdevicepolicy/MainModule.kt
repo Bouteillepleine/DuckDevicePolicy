@@ -1,6 +1,8 @@
 package com.strawing.duckdevicepolicy
 
 import android.content.SharedPreferences
+import android.os.Binder
+import android.os.Process
 import android.util.Log
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
@@ -153,9 +155,23 @@ class MainModule : XposedModule() {
         return null
     }
 
+    /**
+     * `owner_server` is the only category whose rows are real binder entry points that
+     * DevicePolicyManagerService also re-enters itself — `getDeviceOwnerComponent` alone has
+     * seven in-process callers, including the path that writes a new owner. The category
+     * promises to answer apps, so hold it to that: an app caller carries its own uid, while
+     * the framework asking itself carries the system uid. This is not the guard 4.8 removed;
+     * that one sat on client-side DevicePolicyManager hooks inside system_server, where no
+     * app is ever the caller and the question was meaningless.
+     */
+    private fun servingApp(): Boolean =
+        runCatching { Binder.getCallingUid() >= Process.FIRST_APPLICATION_UID }.getOrDefault(false)
+
     private fun hookerFor(spec: Restrictions.Spec) = XposedInterface.Hooker { chain ->
         val transform = spec.transform
-        if (!bypass(spec.category) || !appliesTo(spec, chain)) {
+        if (spec.category == Restrictions.OWNER_SERVER && !servingApp()) {
+            chain.proceed()
+        } else if (!bypass(spec.category) || !appliesTo(spec, chain)) {
             chain.proceed()
         } else if (transform == null) {
             countHit(spec)

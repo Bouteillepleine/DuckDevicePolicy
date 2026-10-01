@@ -16,6 +16,9 @@ object Restrictions {
     private const val CN = "android.content.ComponentName"
     private const val STR = "java.lang.String"
     private const val INT = "int"
+    private const val BOOL = "boolean"
+
+    private const val USER_NULL = -10000
 
     const val CAMERA = "camera"
     const val SCREEN_CAPTURE = "screen_capture"
@@ -201,5 +204,9 @@ object Restrictions {
         Spec(OWNER_SERVER, DPMS, "getDeviceOwnerOrganizationName", arrayOf()) { null },
         Spec(OWNER_SERVER, DPMS, "isOrganizationOwnedDeviceWithManagedProfile", arrayOf()) { false },
         Spec(OWNER_SERVER, DPMS, "getUserProvisioningState", arrayOf(INT)) { 0 },
+        Spec(OWNER_SERVER, DPMS, "getDeviceOwnerComponent", arrayOf(BOOL)) { null },
+        Spec(OWNER_SERVER, DPMS, "getDeviceOwnerComponentOnUser", arrayOf(INT)) { null },
+        Spec(OWNER_SERVER, DPMS, "getDeviceOwnerUserId", arrayOf()) { USER_NULL },
+        Spec(OWNER_SERVER, DPMS, "getActiveAdmins", arrayOf(INT)) { null },
     ) + restrictionRows(PACKAGE_INSTALL, INSTALL_KEYS) + restrictionRows(DEBUGGING, DEBUGGING_KEYS)
 }
