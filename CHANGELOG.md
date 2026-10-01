@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.9
+- The device-wide device-owner spoof now covers what `isDeviceOwnerApp`, `getActiveAdmins`
+  and the rest actually read on the binder side, so an app no longer has to be scoped for it
+  to work. It answers apps only; the framework asking itself still gets the truth.
+- Releases are published as prereleases.
+
 ## 4.8
 - App-facing categories now run only in apps you scope; system_server keeps the device-wide
   ones. Deletes 4.7's caller guard, and the bootloop class it was patching.
