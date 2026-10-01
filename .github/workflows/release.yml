@@ -47,3 +47,4 @@ jobs:
         with:
           files: ${{ env.APK_NAME }}
           generate_release_notes: true
+          prerelease: true
