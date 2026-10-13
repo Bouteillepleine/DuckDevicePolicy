@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import android.os.Binder
 import android.os.Process
 import android.util.Log
+import java.io.File
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
@@ -167,9 +168,45 @@ class MainModule : XposedModule() {
     private fun servingApp(): Boolean =
         runCatching { Binder.getCallingUid() >= Process.FIRST_APPLICATION_UID }.getOrDefault(false)
 
+    /**
+     * A device-policy controller the user runs themselves has to be told the truth, or it cannot
+     * manage the device it legitimately owns. Resolved through /data/system/packages.list rather
+     * than a PackageManager call: this runs on a binder thread inside system_server, answering
+     * DevicePolicyManagerService, and re-entering package code from there invites a lock cycle.
+     */
+    @Volatile private var exemptSpec: String? = null
+    @Volatile private var exemptAppIds: Set<Int> = emptySet()
+
+    private fun callerExempt(): Boolean {
+        val spec = prefs?.getString(Prefs.KEY_OWNER_EXCLUDE, "").orEmpty()
+        if (spec != exemptSpec) {
+            exemptSpec = spec
+            exemptAppIds = resolveAppIds(spec.split(',').map { it.trim() }.filter { it.isNotEmpty() })
+        }
+        if (exemptAppIds.isEmpty()) return false
+        val uid = runCatching { Binder.getCallingUid() }.getOrNull() ?: return false
+        return (uid % PER_USER_RANGE) in exemptAppIds
+    }
+
+    private fun resolveAppIds(names: List<String>): Set<Int> {
+        if (names.isEmpty()) return emptySet()
+        return runCatching {
+            File(PACKAGES_LIST).useLines { lines ->
+                lines.mapNotNull { line ->
+                    val parts = line.split(' ')
+                    if (parts.size >= 2 && parts[0] in names) {
+                        parts[1].toIntOrNull()?.let { it % PER_USER_RANGE }
+                    } else {
+                        null
+                    }
+                }.toSet()
+            }
+        }.getOrDefault(emptySet())
+    }
+
     private fun hookerFor(spec: Restrictions.Spec) = XposedInterface.Hooker { chain ->
         val transform = spec.transform
-        if (spec.category == Restrictions.OWNER_SERVER && !servingApp()) {
+        if (spec.category == Restrictions.OWNER_SERVER && (!servingApp() || callerExempt())) {
             chain.proceed()
         } else if (!bypass(spec.category) || !appliesTo(spec, chain)) {
             chain.proceed()
@@ -240,5 +277,7 @@ class MainModule : XposedModule() {
     private companion object {
         const val TAG = "DuckDevicePolicy"
         const val UNRESOLVED_PER_LINE = 10
+        const val PER_USER_RANGE = 100000
+        const val PACKAGES_LIST = "/data/system/packages.list"
     }
 }

@@ -13,10 +13,14 @@ category, behind a master toggle. Formerly DuckPolicy, same package. Fork of
 
 **Needs an LSPosed 2.x fork** (Xposed API 101+). Mainline 1.9.x will not load it.
 
-**Scope matters.** Tick every framework entry your manager offers — `android`, `system`,
-`system_server` — or the device-wide categories do nothing. Everything else only affects
-apps you scope; Outlook is recommended, and Photos as belt and braces. Locked Folder
+**Scope matters.** Tick the system_server entry — your manager calls it `system` or
+`system_server` — or the device-wide categories do nothing. **Do not tick `android`:** since
+4.8 it hooks nothing, and it has been reported to stop Zygisk loading. Everything else only
+affects apps you scope; Outlook is recommended, and Photos as belt and braces. Locked Folder
 itself is answered device-wide by the device-owner spoof, not inside Photos.
+
+Running your own device-owner app (OwnDroid and friends)? Add it under **Device-owner spoof
+exempt apps** on the Categories tab, or it will be told it is not the owner.
 
 **Never scope Intune / Company Portal / Authenticator** — they enforce policy rather than
 read it, so spoofing them just triggers compliance retries or a remote wipe. Teams and other

@@ -1,6 +1,8 @@
 package com.strawing.duckdevicepolicy
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.app.admin.DevicePolicyManager
 import android.content.SharedPreferences
 import android.os.Bundle
@@ -137,8 +139,10 @@ class MainActivity : AppCompatActivity() {
         ui.content.addView(ui.sectionLabel("Device-wide", allNoneActions(enabled, deviceWide)))
         addCategoryCard(deviceWide, enabled)
         ui.content.addView(
-            ui.noteRow("These cover every app at once, so you don't have to scope apps one by one. They need a framework entry in this module's scope: tick every entry it marks Recommended. All skips the device-owner spoof; switch that one on yourself.")
+            ui.noteRow("These cover every app at once, so you don't have to scope apps one by one. They need the system_server entry in this module's scope — your manager calls it system or system_server. Do not tick android: since 4.8 it hooks nothing and has been reported to break Zygisk. All skips the device-owner spoof; switch that one on yourself.")
         )
+
+        ui.content.addView(ui.linkRow(exemptLabel()) { if (enabled) pickExemptApps() })
 
         ui.content.addView(ui.sectionLabel("App-facing", allNoneActions(enabled, appFacing)))
         addCategoryCard(appFacing, enabled)
@@ -177,6 +181,44 @@ class MainActivity : AppCompatActivity() {
         }
         card.addView(col)
         ui.content.addView(card)
+    }
+
+    private fun exemptList(): List<String> =
+        prefs.getString(Prefs.KEY_OWNER_EXCLUDE, "").orEmpty()
+            .split(',').map { it.trim() }.filter { it.isNotEmpty() }
+
+    private fun exemptLabel(): String {
+        val n = exemptList().size
+        return if (n == 0) "Device-owner spoof: no exempt apps" else "Device-owner spoof: $n exempt app" + (if (n == 1) "" else "s")
+    }
+
+    /**
+     * An app that is itself the device owner has to be told the truth, or it cannot manage the
+     * device. Only launchable apps are listed: a controller the user installed always has a
+     * launcher entry, and the full package list is thousands of rows of noise.
+     */
+    private fun pickExemptApps() {
+        val pm = packageManager
+        val apps = runCatching {
+            pm.getInstalledApplications(0)
+                .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
+                .map { it.packageName to pm.getApplicationLabel(it).toString() }
+                .sortedBy { it.second.lowercase() }
+        }.getOrDefault(emptyList())
+        if (apps.isEmpty()) return
+        val chosen = exemptList().toMutableSet()
+        val labels = apps.map { "${it.second}\n${it.first}" }.toTypedArray()
+        val checked = apps.map { it.first in chosen }.toBooleanArray()
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Answer these apps truthfully")
+            .setMultiChoiceItems(labels, checked) { _, which, isChecked ->
+                if (isChecked) chosen.add(apps[which].first) else chosen.remove(apps[which].first)
+            }
+            .setPositiveButton("Save") { _, _ ->
+                if (write { putString(Prefs.KEY_OWNER_EXCLUDE, chosen.sorted().joinToString(",")) }) render()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun setAll(categories: List<Restrictions.Category>, value: Boolean) {

@@ -11,6 +11,9 @@ object Prefs {
     /** Master on/off. Defaults to true so a fresh install is active. */
     const val KEY_MASTER = "bypass_enabled"
 
+    /** Comma-separated packages the device-wide owner spoof must answer truthfully. */
+    const val KEY_OWNER_EXCLUDE = "owner_server_exclude"
+
     /** Per-category key, e.g. "cat_camera". */
     fun key(category: String) = "cat_$category"
 
