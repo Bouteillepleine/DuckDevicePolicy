@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.10
+- Don't tick the `android` scope entry: it hooks nothing and breaks Zygisk.
+- Device-owner spoof can answer chosen apps truthfully, for your own DPC.
+
 ## 4.9
 - Device-owner spoof covers what apps really read, so Locked Folder works unscoped.
 
